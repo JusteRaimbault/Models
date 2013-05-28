@@ -1,4 +1,4 @@
-extensions[gis test profiler]
+extensions[gis test profiler nw]
 
 __includes[
   "/Users/Juste/Documents/Complex Systems/Softwares/NetLogo/utils/euclidianDistances.nls" 
@@ -68,14 +68,21 @@ globals [
   rent-mean
   rent-sigma
   
+  
+  ;;globals for extended aspects
+  green-space-satisfaction-individual-norm-factor
+  services-satisfaction-individual-norm-factor
 ]
 
 
 
 
+;;Basic breeds
 breed [flats flat]
 breed [buildings building]
 breed [households household]
+
+
 
 ;;new breeds
 breed [services service]
@@ -84,7 +91,13 @@ breed [green-spaces green-space]
 
 
 
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;
 ;;network include breeds
+;;;;;;;;;;;;;;;;;;;;;;;
+
 breed [vertexes vertex]        
 breed [abstract-gis-paths abstract-gis-path]
 
@@ -95,11 +108,17 @@ abstract-gis-paths-own [
 
 undirected-link-breed [paths path]
 
+paths-own [path-length]
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
 
 
-
+;;;;;;;;;;;;;;;;;;;;;;
+;; Owned variables
+;;;;;;;;;;;;;;;;;;;;;;
 
 buildings-own [
   gis-shape      ;corresponding gis VectorFeature
@@ -122,6 +141,11 @@ households-own[
   consumption-rate  ;quite constant, shows the tendancy to consum
   
   occupied-flat      ;pointer to the occuped flat
+  
+  ;;life quality aspects
+  green-space-satisfaction
+  services-satisfaction
+  
 ]
 
 
@@ -289,6 +313,10 @@ to set-random-initial-configuration
   set unemployment-data-time-scale read-from-string first but-first data
   set unemployment-data map read-from-string but-first but-first data
   
+  ;;extended globals
+  set green-space-satisfaction-individual-norm-factor 2.5
+  set services-satisfaction-individual-norm-factor 2.5
+  
   output-print "Variables"
   
   ;;fix rents
@@ -353,6 +381,11 @@ to new-household [income]
      find-flat
      ;;social help
      set social-help? false
+     
+     ;;default satisfactions
+     set green-space-satisfaction 0
+     set services-satisfaction 0  
+     
 end
 
 ;household procedure to find the best flat
@@ -385,7 +418,7 @@ to go
   
   
   
-  
+  update-life-quality-reporters
   
   tick
   
@@ -453,6 +486,28 @@ end
 
 
 
+
+
+to update-life-quality-reporters
+  output-print "Calculating life quality reporters..."
+  snapshot
+  ask households [
+    set green-space-satisfaction green-space-satisfaction-reporter
+    set services-satisfaction services-satisfaction-reporter
+  ]
+end
+
+to-report green-space-satisfaction-reporter
+  let distances []
+  ask green-spaces [set distances lput distance-through-network myself distances]
+  report norm-p green-space-satisfaction-individual-norm-factor distances
+end
+
+to-report services-satisfaction-reporter
+  let distances []
+  ask services [set distances lput distance-through-network myself distances]
+  report norm-p services-satisfaction-individual-norm-factor distances
+end
 
 
 
@@ -815,7 +870,7 @@ unemployment-initial-rate
 unemployment-initial-rate
 0
 100
-7.7
+5.5
 1
 1
 NIL
@@ -1336,6 +1391,42 @@ standard?
 1
 1
 -1000
+
+PLOT
+1242
+183
+1402
+303
+green satisf
+NIL
+NIL
+0.0
+10.0
+0.0
+10.0
+true
+false
+"" ""
+PENS
+"default" 1.0 0 -16777216 true "" "plot norm-p 1 [green-space-satisfaction] of households"
+
+PLOT
+1242
+307
+1402
+427
+services satisf
+NIL
+NIL
+0.0
+10.0
+0.0
+10.0
+true
+false
+"" ""
+PENS
+"default" 1.0 0 -16777216 true "" "plot norm-p 1 [services-satisfaction] of households"
 
 @#$#@#$#@
 ## WHAT IS IT?
