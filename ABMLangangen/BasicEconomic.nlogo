@@ -1,4 +1,4 @@
-extensions[gis test profiler numanal]
+oextensions[gis test profiler numanal]
 
 __includes[
   "/Users/Juste/Documents/Complex Systems/Softwares/NetLogo/utils/euclidianDistances.nls" 
@@ -760,7 +760,7 @@ unemployment-initial-rate
 unemployment-initial-rate
 0
 100
-7.7
+21
 1
 1
 NIL
@@ -1015,7 +1015,7 @@ die-treshold
 die-treshold
 -10000
 1000
--1100
+-2010
 10
 1
 NIL
@@ -1105,7 +1105,7 @@ bref
 bref
 -10000
 20000
-15000
+10640
 10
 1
 NIL
@@ -1133,7 +1133,7 @@ SWITCH
 235
 unemp-ext-data?
 unemp-ext-data?
-0
+1
 1
 -1000
 
@@ -1192,7 +1192,7 @@ income-mean
 income-mean
 5000
 25000
-10000
+18250
 10
 1
 NIL
@@ -1207,7 +1207,7 @@ bnorm
 bnorm
 10000
 50000
-20000
+49490
 10
 1
 NIL

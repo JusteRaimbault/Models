@@ -1,7 +1,7 @@
 extensions[gis test profiler nw]
 
 __includes[
-  "/Users/Juste/Documents/Complex Systems/Softwares/NetLogo/utils/euclidianDistances.nls" 
+  "/Users/Juste/Documents/Complex Systems/Softwares/NetLogo/utils/EuclidianDistancesUtilities.nls" 
   "/Users/Juste/Documents/Complex Systems/Softwares/NetLogo/utils/StringUtilities.nls"
   "/Users/Juste/Documents/Complex Systems/Softwares/NetLogo/utils/SortingUtilities.nls"
   "/Users/Juste/Documents/Complex Systems/Softwares/NetLogo/utils/ListUtilities.nls"
@@ -161,6 +161,10 @@ flats-own[
   living-standard ;;find a way to quantify it
   energetic-performance ;;% of total rent? easier that way
   
+  ;;caches lists for distances - index corresponds to place in the sorted list of green by who (avoids a hashmap)
+  distances-to-green-spaces
+  distances-to-services
+  
 ]
 
 
@@ -230,24 +234,29 @@ to set-static-agents
   ;creation of buildings
   foreach gis:feature-list-of building-layer-data [create-buildings 1 [set gis-shape ? set in-flats [] set hidden? true]]
   
-  ;;creation of flats
-  set-flats  
-  
-  ;;set transport stations
   
   
-  ;;set green spaces
+  ;;create abstract network -> BEFORE SETTING FLATS !!! (need network to calculate caches distances)
+  ;;cluster treshold is fixed? Y, very small
+  output-print "Extracting abstract network from GIS network..."
+  set cluster-treshold 0.5
+  create-network
+  
+  ;;set green spaces - Idem network (targets need to exist!)
   if green? [foreach gis:feature-list-of green-layer-data [foreach gis:vertex-lists-of ? [foreach ? [let loc gis:location-of ? create-green-spaces 1 [setxy first loc first but-first loc set color green set shape "circle"]]]]]
   
   ;;set services
   if services? [foreach gis:feature-list-of services-layer-data [foreach gis:vertex-lists-of ? [foreach ? [let loc gis:location-of ? create-services 1 [setxy first loc first but-first loc set color red set shape "circle"]]]]]
   
+  ;;set transport stations
+   
   
-  ;;create abstract network
-  ;;cluster treshold is fixed? Y, very small
-  output-print "Extracting abstract network from GIS network..."
-  set cluster-treshold 1
-  create-network
+  ;;creation of flats
+  set-flats  
+  
+
+  
+  
   
   
   
@@ -260,15 +269,33 @@ to set-flats
   let previous-flat nobody
   let filled? false
   let previous-building nobody
+  snapshot
   
   while [not filled?][
      ;;fix if in a building
      let fixed? false
-     ask buildings [let b self ask current-flat [ifelse not fixed? [
-           if gis:contains? [gis-shape] of myself self [hatch-flats 1 [set previous-flat current-flat set current-flat self ask b [set in-flats lput previous-flat in-flats set previous-building self]] set fixed? true]] 
+     ask buildings [let b self ask current-flat [
+         ifelse not fixed? [
+           if gis:contains? [gis-shape] of myself self [
+             hatch-flats 1 [
+               set previous-flat current-flat set current-flat self
+               ask b [
+                 set in-flats lput previous-flat in-flats set previous-building self
+               ]
+             ] 
+             set fixed? true
+             
+             ;;since current flat has been fixed in previous flat, able to calculate cache distances to activities
+             set distances-to-green-spaces []
+             foreach sort-on [who] green-spaces [set distances-to-green-spaces lput distance-through-network ? distances-to-green-spaces]
+             set distances-to-services []
+             foreach sort-on [who] services [set distances-to-services lput distance-through-network ? distances-to-services]
+             
+           ]
+         ] 
          [ if gis:contains? [gis-shape] of myself self [ask previous-building [set in-flats remove previous-flat in-flats] ask previous-flat [die]]  ;;two and only two max containing shape?   
            ] ]]
-     ask current-flat [if ycor = world-height - 1 and xcor = world-width - 1 [set filled? true] set ycor ycor + 0.5 if ycor = 0 [set xcor xcor + 0.5]]
+     ask current-flat [ifelse ycor = world-height - 1 and xcor = world-width - 1 [set filled? true] [set ycor (ycor + 0.5 ) mod (world-height - 0.5) if ycor = 0 [set xcor (xcor + 0.5 ) mod (world-width - 0.5)]]]
      if filled? [ask current-flat[die]]
   ]
 end
@@ -490,23 +517,19 @@ end
 
 to update-life-quality-reporters
   output-print "Calculating life quality reporters..."
-  snapshot
+  ;snapshot
   ask households [
-    set green-space-satisfaction green-space-satisfaction-reporter
-    set services-satisfaction services-satisfaction-reporter
+    if green? [set green-space-satisfaction green-space-satisfaction-reporter]
+    if services? [set services-satisfaction services-satisfaction-reporter]
   ]
 end
 
 to-report green-space-satisfaction-reporter
-  let distances []
-  ask green-spaces [set distances lput distance-through-network myself distances]
-  report norm-p green-space-satisfaction-individual-norm-factor distances
+   report norm-p green-space-satisfaction-individual-norm-factor [distances-to-green-spaces] of occupied-flat
 end
 
 to-report services-satisfaction-reporter
-  let distances []
-  ask services [set distances lput distance-through-network myself distances]
-  report norm-p services-satisfaction-individual-norm-factor distances
+   report norm-p services-satisfaction-individual-norm-factor [distances-to-services] of occupied-flat
 end
 
 
@@ -724,8 +747,8 @@ GRAPHICS-WINDOW
 1
 1
 0
-1
-1
+0
+0
 1
 0
 54
@@ -870,7 +893,7 @@ unemployment-initial-rate
 unemployment-initial-rate
 0
 100
-5.5
+7.7
 1
 1
 NIL
@@ -1355,7 +1378,7 @@ SWITCH
 255
 transport?
 transport?
-0
+1
 1
 -1000
 
@@ -1428,6 +1451,23 @@ false
 PENS
 "default" 1.0 0 -16777216 true "" "plot norm-p 1 [services-satisfaction] of households"
 
+BUTTON
+1013
+98
+1076
+131
+test
+ask paths [set color blue set thickness 0.3 let e1 end1 let d 0 ask end2 [set d distance e1] set path-length d]\nnw:set-snapshot vertexes paths\nask one-of vertexes [\n   ask one-of other vertexes [\n     let l nw:weighted-path-to myself \"path-length\"\n     if l != false [foreach l [ask ? [set thickness 0.5 set color green]]]\n   ]\n]
+NIL
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
+
 @#$#@#$#@
 ## WHAT IS IT?
 
@@ -1436,7 +1476,9 @@ We add "socio-cultural" aspects, in facts living conditions, inside flats and ou
 
 ## HOW IT WORKS
 
-(what rules the agents use to create the overall behavior of the model)
+New agents : green-spaces, services, transport
+New owned variables for flats : energy perf and standard
+
 
 ## HOW TO USE IT
 
