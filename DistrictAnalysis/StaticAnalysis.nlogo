@@ -5,6 +5,7 @@ __includes [
   "/Users/Juste/Documents/Complex Systems/Softwares/NetLogo/utils/ListUtilities.nls"
   "/Users/Juste/Documents/Complex Systems/Softwares/NetLogo/utils/NetworkUtilities.nls"
   "/Users/Juste/Documents/Complex Systems/Softwares/NetLogo/utils/EuclidianDistancesUtilities.nls"
+  "daylight.nls"
 ]
 
 globals [
@@ -58,9 +59,19 @@ buildings-own[
 ]
 
 
+patches-own [
+  height
+  neighb
+]
+
+
+
 
 to load-and-draw-data
   ca
+  resize-world 0 400 0 300
+  set-patch-size 2
+  ask patches [set height 0]
   set paths-layer-data gis:load-dataset "/Users/Juste/Documents/Complex Systems/SustainableDistrict/Data/Bergsjon/GIS/Bergsjon/bergsjonallpaths.shp"
   set buildings-layer-data gis:load-dataset "/Users/Juste/Documents/Complex Systems/SustainableDistrict/Data/Bergsjon/GIS/Bergsjon/bergsjonbuildings.shp"
   
@@ -73,7 +84,9 @@ to load-and-draw-data
   ;;create abstract buildings
 
   foreach gis:feature-list-of buildings-layer-data [
-    create-buildings 1 [let pos gis:location-of gis:centroid-of ? set gis-shape ? set distance-to-nearest-station 0 set hidden? true setxy first pos first but-first pos ] 
+    create-buildings 1 [
+      let pos gis:location-of gis:centroid-of ? set gis-shape ? set distance-to-nearest-station 0 set hidden? true setxy first pos first but-first pos
+    ] 
   ]
   
   
@@ -204,11 +217,11 @@ end
 GRAPHICS-WINDOW
 210
 10
-1195
-678
-37
-24
-13.0
+1022
+643
+-1
+-1
+2.0
 1
 10
 1
@@ -218,10 +231,10 @@ GRAPHICS-WINDOW
 0
 0
 1
--37
-37
--24
-24
+0
+400
+0
+300
 0
 0
 1

@@ -1,0 +1,43 @@
+;;tests for daylight indicator calculation
+
+;;patches need owned-variable height
+;;import from raster data? first directly from layer
+;;patches are spatial discretisation (not more, so need to be precise)
+
+
+to test-sunlight-index
+  let theta (list 0 0 0 0 0 0 0 10 20 30 40 50 50 50 50 50 50 40 30 20 10 0 0 0)
+  let phi (list 0 0 0 0 0 0 0 90 110 120 130 150 170 180 190 200 210 230 240 260 270 0 0 0) ;;degueu
+  
+  
+end
+
+
+to set-heights
+  ask patches [set pcolor black set height 0]
+;  ask buildings [
+;    let env gis:envelope-of gis-shape
+;    let xmin first env let xmax first but-first env
+;    let ymin first but-first but-first env let ymax first but-first but-first but-first env
+;    let i 0 let j 0
+;    repeat (xmax - xmin) [repeat (ymax - ymin)[let p patch (xmin + i) (ymin + j) if p != nobody [ if gis:contains? gis-shape p or gis:intersects? gis-shape p [ask p [set height 30]]] set j j + 1] set i i + 1 set j 0]
+;  ]
+;  show "ok"
+  ask buildings [ask patches with [gis:intersects? [gis-shape] of myself self or gis:contains? [gis-shape] of myself self] [set height 30 set pcolor white]]
+end
+
+to-report objective-points
+  ;;dirty : for each discontinuity between two patches, add a column of windows? :/
+  ask patches [set neighb to-list neighbors4]
+  
+  let res []
+  
+  ask patches [
+    foreach neighb [
+      ask ? [set neighb remove myself neighb]
+      if [height] of ? - height != 0 [set res lput list (([pxcor] of ? + pxcor) / 2) (([pycor] of ? + pycor) / 2) res]
+    ]
+  ]
+  
+  report res
+end

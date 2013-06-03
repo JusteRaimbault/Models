@@ -1,0 +1,304 @@
+to draw-gis-layers
+  ca
+  
+  log-out "Loading and Drawing GIS data..."
+  
+  ask patches [set pcolor white]
+  
+  ;;load gis layers
+  set building-layer-data gis:load-dataset "/Users/Juste/Documents/Complex Systems/SustainableDistrict/Data/Langangen/GIS/langangen_building/langangen_buildings_pol.shp";user-new-file
+  set paths-layer-data gis:load-dataset "/Users/Juste/Documents/Complex Systems/SustainableDistrict/Data/Langangen/GIS/langangen_roads/langangen_roads.shp"
+  set transport-layer-data gis:load-dataset "/Users/Juste/Documents/Complex Systems/SustainableDistrict/Data/Langangen/GIS/langangen_transport/langangen_transport.shp"
+  set green-layer-data gis:load-dataset "/Users/Juste/Documents/Complex Systems/SustainableDistrict/Data/Langangen/GIS/langangen_green/langangen_green.shp"
+  set services-layer-data gis:load-dataset "/Users/Juste/Documents/Complex Systems/SustainableDistrict/Data/Langangen/GIS/langangen_services/langangen_services.shp"
+  
+  ;;set enveloppes - these two layers enough?
+  gis:set-world-envelope gis:envelope-union-of gis:envelope-of building-layer-data gis:envelope-of paths-layer-data
+  
+  ;;draw buildings
+  gis:set-drawing-color black
+  foreach gis:feature-list-of building-layer-data [
+    ;if gis:property-value ? "ID" = target-id [gis:set-drawing-color red]
+    ;foreach explode ";" gis:property-value ? "ADRESS" [if member? ? adresses [gis:set-drawing-color blue]]
+    gis:fill ? 1 gis:set-drawing-color black
+    let c gis:location-of gis:centroid-of ?
+    ;create-turtles 1 [setxy item 0 c item 1 c set label-color red set size 0 set label gis:property-value ? "ADRESS"]
+  ]
+  gis:set-drawing-color white
+  foreach gis:feature-list-of building-layer-data [let v ? foreach gis:feature-list-of building-layer-data [if v != ? and gis:contains? v ?[gis:fill ? 1]]]
+  
+  ;;draw roads
+  gis:set-drawing-color brown
+  gis:draw paths-layer-data 2
+  
+  ;;draw other layers
+  if green? [gis:set-drawing-color green
+  gis:draw green-layer-data 5]
+  if services? [gis:set-drawing-color red
+  gis:draw services-layer-data 5]
+  if transport? [gis:set-drawing-color orange
+  gis:draw transport-layer-data 3]
+  
+
+  
+end
+
+
+
+
+to load-csv-properies [filename property-name layer-data];load from csv file of the form ADRESS;PROPERTY
+  let data but-first read-file filename
+  foreach data [
+    let value first but-first explode ";" ?
+    foreach layer-data [
+       ;gis:set-property-value 
+    ]
+  ]
+end
+
+
+
+
+
+
+;;set the static agent that are not supposed to change.
+to set-static-agents
+  log-out "Setting up static agents..."
+  
+  
+  ;;loading some building data  
+  let adresses import-data "data.csv" 0
+  let energy map read-from-string import-data "data.csv" 1
+  
+  
+  ;creation of buildings
+  foreach gis:feature-list-of building-layer-data [
+    create-buildings 1 [
+      set gis-shape ? set in-flats [] set hidden? true
+      let i 0 foreach explode ";" gis:property-value ? "ADRESS" [if member? ? adresses [set i position ? adresses set building-energetic-performance item i energy]]
+      if building-energetic-performance = 0 [set building-energetic-performance mean energy]
+    ]
+  ]
+  
+  
+  
+  ;;create abstract network -> BEFORE SETTING FLATS !!! (need network to calculate caches distances)
+  ;;cluster treshold is fixed? Y, very small
+  output-print "Extracting abstract network from GIS network..."
+  set cluster-treshold 0.5
+  create-network
+  
+  ;;set green spaces - Idem network (targets need to exist!)
+  if green? [foreach gis:feature-list-of green-layer-data [foreach gis:vertex-lists-of ? [foreach ? [let loc gis:location-of ? create-green-spaces 1 [setxy first loc first but-first loc set color green set shape "circle"]]]]]
+  
+  ;;set services
+  if services? [foreach gis:feature-list-of services-layer-data [foreach gis:vertex-lists-of ? [foreach ? [let loc gis:location-of ? create-services 1 [setxy first loc first but-first loc set color red set shape "circle"]]]]]
+  
+  ;;set transport stations
+   
+  
+  ;;creation of flats
+  set-flats  
+  
+
+  
+  
+  
+  
+  
+end
+
+
+
+
+
+to set-flats
+  output-print "Filling buildings with flats..."
+  create-flats 1 [setxy 0 0 set shape "house" set size 0.5 set color yellow set occupant nobody]
+  let current-flat one-of flats
+  let previous-flat nobody
+  let filled? false
+  let previous-building nobody
+  snapshot
+  
+  ;;procedure to fill the building with flats seems weird, but no direct method to get patches within a gis shape
+  ;; -> maybe create this function ?
+  ;;doesn't seems to work well : too big spatial unit ; issue with rent graphs? 
+;  ask buildings [
+;    ask patches-in gis-shape [set pcolor yellow  sprout-flats 1 [set shape "house" set size 0.5 set color yellow set occupant nobody]]
+;  ]
+
+  
+  while [not filled?][
+     ;;fix if in a building
+     let fixed? false
+     ask buildings [
+       let b self ask current-flat [
+         ifelse not fixed? [
+           if gis:contains? [gis-shape] of myself self [
+             hatch-flats 1 [
+               set previous-flat current-flat set current-flat self
+               ask b [
+                 set in-flats lput previous-flat in-flats set previous-building self
+               ]
+             ] 
+             set fixed? true
+             
+             ;;since current flat has been fixed in previous flat, able to calculate cache distances to activities 
+             ;;update these distances if change in configuration of green-space/services : case of a refurbishment e.g.
+             set-cache-distances
+             
+           ]
+         ] 
+         [ if gis:contains? [gis-shape] of myself self [ask previous-building [set in-flats remove previous-flat in-flats] ask previous-flat [die]]  ;;two and only two max containing shape?   
+           ]
+         ]
+     ]
+     
+     ;;advance current-flat in space
+     ask current-flat [ifelse ycor = world-height - 1 and xcor = world-width - 1 [set filled? true] [set ycor (ycor + 0.5 ) mod (world-height - 0.5) if ycor = 0 [set xcor (xcor + 0.5 ) mod (world-width - 0.5)]]]
+     if filled? [ask current-flat[die]]
+  ]
+end
+
+
+
+;;flat procedure, set caches distances. called when setup or services update
+;;need snapshot before
+to set-cache-distances
+  set distances-to-green-spaces []
+  foreach sort-on [who] green-spaces [set distances-to-green-spaces lput distance-through-network ? distances-to-green-spaces]
+  set distances-to-services []
+  foreach sort-on [who] services [set distances-to-services lput distance-through-network ? distances-to-services]           
+end
+
+
+to set-static
+  draw-gis-layers
+  set-static-agents
+end
+
+
+
+to set-random-initial-configuration
+  
+  ;;when multiple iterations (ex calibration), don't do it each tick to gain time
+  set-static
+  
+  log-out "Setting up dynamic agents..."
+  
+  
+  ;;set "fixed" global vars
+  set couple-proba 0.8
+  set children-mean 1
+  ;set income-mean 16000
+  ;set income-sigma 3000
+  set rent-mean 72.45
+  set rent-sigma 6.9
+  ;set time-interval 0.1 ;6month
+  set social-help-max-recipient-proportion 25
+  set taxes-proportion 0.1
+  set person-cost 1500
+  set social-help-max-amount 15000
+  set job-opportunities-per-year 100
+  set max-immigrant-number-per-year 10
+  set max-rent-per-square-meter 200
+  ;set bnorm 30000
+  set stop? false
+  
+  let data read-file "unemployment.csv"
+  set unemployment-data-time-scale read-from-string first but-first data
+  set unemployment-data map read-from-string but-first but-first data
+  
+  ;;extended globals
+  set green-space-satisfaction-individual-norm-factor 2.5
+  set services-satisfaction-individual-norm-factor 2.5
+  
+  set standard-influence-on-rent 0.2
+  
+  ;set energy-cost 10
+  
+  log-out "Variables"
+  
+  ;;fix rents
+  ask buildings [
+    set rent-per-square-meter random-normal rent-mean rent-sigma
+    
+    let energy-per-month building-energetic-performance / 12
+    
+    ;;set foreach flat rooms, surface and rent - and standard and energetic performances
+    foreach in-flats [
+      let r random-float 1
+      ifelse r > couple-proba [ask ? [set rooms 2]]
+      [ifelse r > couple-proba / 2 [ask ? [set rooms 3]][ask ? [set rooms 4]]]
+      ask ? [
+        ;;3 levels of standard, what does it represent? ; impact on rent? depends of parameter...
+        set living-standard random 3 + 1
+        
+        
+        ;;surface : simplified by linear to rooms
+        set surface rooms * 20
+        
+        
+        ;;energetic perf : fixed for all? initial value from gis-data, ref change this value.
+        set energetic-performance energy-per-month * surface
+        
+        ;;rent - initial value so standard is important
+        set rent ([rent-per-square-meter] of myself) * surface * (1 + (standard-influence-on-rent * (living-standard - 1) / 2))
+        
+      ]
+    ]
+    
+    
+    
+  ]
+  
+  log-out "Rents"
+  
+  ;;populate the district
+  ;;again quite weird method? lexically sort by (rent,rooms)
+  
+  set flats-list-by-rooms []
+  set flats-list-by-rooms lput sort-by [lexcomp ?1 ?2 (list task [rent])] flats with [rooms = 2] flats-list-by-rooms
+  set flats-list-by-rooms lput sort-by [lexcomp ?1 ?2 (list task [rent])] flats with [rooms = 3] flats-list-by-rooms
+  set flats-list-by-rooms lput sort-by [lexcomp ?1 ?2 (list task [rent])] flats with [rooms = 4] flats-list-by-rooms
+  repeat floor (count flats ) * initial-occupied-flats / 100 [
+     
+     create-households 1 [
+       new-household income-mean
+     ] 
+  ]
+  
+  log-out "Households"
+  
+  reset-ticks
+  
+  update-drawing
+  
+  
+  
+  
+end
+
+
+
+
+
+
+
+to-report import-data [file index]
+  let res []
+  file-open file
+  while [not file-at-end?][
+     set res lput item index explode ";" file-read-line res
+  ]
+  file-close
+  report res
+end
+
+
+
+
+
+
+
