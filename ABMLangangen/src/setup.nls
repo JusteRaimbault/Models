@@ -67,8 +67,8 @@ to set-static-agents
   
   
   ;;loading some building data  
-  let adresses import-data "data/data.csv" 0
-  let energy map read-from-string import-data "data/data.csv" 1
+  let adresses import-data "data.csv" 0
+  let energy map read-from-string import-data "data.csv" 1
   
   ;;load questionnaire data
   load-questionnaire-data "/Users/Juste/Documents/Complex Systems/SustainableDistrict/Data/Langangen/Spss/questionnaire.csv"
@@ -208,7 +208,7 @@ to set-random-initial-configuration
   ;set bnorm 30000
   set stop? false
   
-  let data read-file "data/unemployment.csv"
+  let data read-file "unemployment.csv"
   set unemployment-data-time-scale read-from-string first but-first data
   set unemployment-data map read-from-string but-first but-first data
   

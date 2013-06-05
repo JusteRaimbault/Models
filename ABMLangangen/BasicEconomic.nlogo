@@ -1,7 +1,7 @@
-oextensions[gis test profiler numanal]
+extensions[gis test profiler numanal]
 
 __includes[
-  "/Users/Juste/Documents/Complex Systems/Softwares/NetLogo/utils/euclidianDistances.nls" 
+  "/Users/Juste/Documents/Complex Systems/Softwares/NetLogo/utils/EuclidianDistancesUtilities.nls" 
   "/Users/Juste/Documents/Complex Systems/Softwares/NetLogo/utils/StringUtilities.nls"
   "/Users/Juste/Documents/Complex Systems/Softwares/NetLogo/utils/SortingUtilities.nls"
   "/Users/Juste/Documents/Complex Systems/Softwares/NetLogo/utils/ListUtilities.nls"
@@ -291,7 +291,7 @@ end
 to calibrate-with-simplex
   let guess [10000 34000 13000]
   let tsk task [runmodel ?]
-  let result numanal:simplex guess tsk 1.0E-6 1000
+  let result numanal:simplex guess tsk 10 1000
   show result
 end
 
@@ -306,7 +306,7 @@ to-report runmodel [params]
        
   let out 0
   let i 0
-  while [not stop?][go if (ticks * time-interval) mod 1 = 0 and ticks > 1 [set out out + (((mean [rent / surface] of flats) - (item i rents)) ^ 2) set i i + 1]]  
+  while [not stop?][go if (ticks * time-interval) mod unemployment-data-time-scale = 0 and ticks > 1 and not stop? [show unemployment-data set out out + (((mean [rent / surface] of flats) - (item i rents)) ^ 2) set i i + 1]]  
   
   show word "mean-square-error" out
   ca
@@ -1105,7 +1105,7 @@ bref
 bref
 -10000
 20000
-10640
+10000
 10
 1
 NIL
@@ -1192,7 +1192,7 @@ income-mean
 income-mean
 5000
 25000
-18250
+13000
 10
 1
 NIL
@@ -1207,7 +1207,7 @@ bnorm
 bnorm
 10000
 50000
-49490
+34000
 10
 1
 NIL

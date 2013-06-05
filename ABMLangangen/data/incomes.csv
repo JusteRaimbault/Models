@@ -1,0 +1,12 @@
+//objective income time-serie
+//in KKr per year
+objinc=[];
+objinc(1)=210;
+objinc(2)=232.6;
+objinc(3)=236;
+objinc(4)=240.1;
+objinc(5)=241.2;
+objinc(6)=237.2;
+objinc(7)=233.7;
+objinc(8)=230;
+objinc(9)=220;

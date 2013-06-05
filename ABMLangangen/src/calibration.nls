@@ -1,0 +1,39 @@
+;;try to simple run on the simplex
+to calibrate-with-simplex
+  set calib-file word word "calibration/calibSimplexMeanSquares_" date-and-time ".sci"
+  set calib-tick 1
+  print-in-file calib-file "ms=[];incomemean=[];bref=[];bnorm=[];"
+  let guess [10000 34000 13000]
+  let tsk task [runmodel ?]
+  let result numanal:simplex guess tsk 50 1000
+  log-out result
+end
+
+to-report runmodel [params]
+
+  set bref first params set bnorm first but-first params set income-mean first but-first but-first params
+  
+  
+  set-random-initial-configuration
+  set rents map read-from-string but-first read-file "rentsNLData.csv"
+  set max-time length rents
+       
+  log-out "In simplex, running model..."
+  log-out word "bref:" bref
+  log-out word "bnorm:" bnorm
+  log-out word "incomemean:" income-mean     
+    
+  let out 0
+  let i 0
+  while [not stop?][go if (ticks * time-interval) mod unemployment-data-time-scale = 0 and ticks > 1 and not stop? [log-out unemployment-data set out out + (((mean [rent / surface] of flats) - (item i rents)) ^ 2) set i i + 1]]  
+  
+  log-out word "mean-square-error" out
+  print-in-file calib-file word word word word "ms(" calib-tick ")=" out ";"
+  print-in-file calib-file word word word word "incomemean(" calib-tick ")=" income-mean ";"
+  print-in-file calib-file word word word word "bref(" calib-tick ")=" bref ";"
+  print-in-file calib-file word word word word "bnorm(" calib-tick ")=" bnorm ";"
+  set calib-tick calib-tick + 1
+  set calib-error round out
+  
+  report out
+end

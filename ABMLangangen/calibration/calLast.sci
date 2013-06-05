@@ -1,4 +1,4 @@
-bref=[];bnorm=[];income-mean=[];rents=[];incomes=[];
+bref=[];bnorm=[];incomemean=[];rents=[];incomes=[];
 bref(1)=5000;
 bnorm(1)=20000;
 incomemean(1)=10000;

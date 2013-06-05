@@ -1,4 +1,4 @@
-extensions[gis test profiler nw]
+extensions[gis test profiler nw numanal]
 
 __includes[
   "/Users/Juste/Documents/Complex Systems/Softwares/NetLogo/utils/EuclidianDistancesUtilities.nls" 
@@ -11,6 +11,7 @@ __includes[
   "/Users/Juste/Documents/Complex Systems/Softwares/NetLogo/utils/NetworkUtilities.nls"    
   "/Users/Juste/Documents/Complex Systems/Softwares/NetLogo/utils/GISUtilities.nls"
   "setup.nls"
+  "calibration.nls"
 ]
 
 globals [
@@ -30,7 +31,8 @@ globals [
   
   flats-list-by-rooms
   unemployment-diff  ;coefficient before the derivative in mean unemployment equa diff
-  stop?
+  
+  ;stop?
   tst
   
   ;;real variables
@@ -85,6 +87,16 @@ globals [
   
   ;;data from questionnaire : list of listes
   questionnaire-data
+  
+  
+  ;;calibration variables
+  
+  ;;oblective for calibration
+  rents-obj
+  incomes-obj
+  ;;output file
+  ;calib-file
+  ;calib-tick
 ]
 
 
@@ -243,6 +255,37 @@ end
 
 
 
+to refurbishment
+  set-random-initial-configuration
+  while [not stop?] [go]
+  
+  ;;proceed to refurbishment
+  log-out "Refurbishment..."
+  ask flats [
+    set energetic-performance energetic-performance * ref-energy-change-factor
+    set living-standard living-standard * ref-living-standard-change-factor
+    ;;need to change rent according to the change of living-standard
+    ;;use same parameter as for initialization?
+    
+  ]
+  
+  ;;simulate following years
+  set stop? false
+  let m max-time
+  set max-time max-time * 2
+  while [not stop?] [go]
+  set max-time m
+  
+  
+  ;;export plots
+  let t date-and-time
+  export-plot-as-scilab "rents" word word word word word word "/Users/Juste/Documents/Complex Systems/SustainableDistrict/Results/ABMLangangen/Refurbishment/scenarii/energyonlyRents_EN_" ref-energy-change-factor "_LS_" ref-living-standard-change-factor "_" t ".sci"
+  export-plot-as-scilab "mean income" word word word word word word "/Users/Juste/Documents/Complex Systems/SustainableDistrict/Results/ABMLangangen/Refurbishment/scenarii/energyonlyIncome_EN_" ref-energy-change-factor "_LS_" ref-living-standard-change-factor "_" t ".sci"
+  export-plot-as-scilab "balances" word word word word word word "/Users/Juste/Documents/Complex Systems/SustainableDistrict/Results/ABMLangangen/Refurbishment/scenarii/energyonlyBalances_EN_" ref-energy-change-factor "_LS_" ref-living-standard-change-factor "_" t ".sci"
+end
+
+
+
 to go
   log-out word "Going for tick " ticks
   
@@ -354,12 +397,13 @@ end
 
 to set-data
   
+  ifelse (ticks * time-interval) > max-time [set stop? true][
   ;;unemployment
   if unemp-ext-data?[
-    ifelse unemployment-data = [] [if (ticks * time-interval) > max-time [set stop? true]]
+    if unemployment-data != []
     [if (ticks * time-interval) mod unemployment-data-time-scale = 0 [set unemployment-initial-rate first unemployment-data set unemployment-data but-first unemployment-data]]
   ]
-  
+  ]
   ;;other data?
   
   
@@ -565,7 +609,6 @@ to log-out [text]
   if debug? [output-print text]
 end
 
-
 @#$#@#$#@
 GRAPHICS-WINDOW
 210
@@ -595,10 +638,10 @@ ticks
 30.0
 
 SLIDER
-15
-16
-187
-49
+118
+427
+210
+460
 target-id
 target-id
 1
@@ -625,10 +668,10 @@ NIL
 HORIZONTAL
 
 BUTTON
-15
-60
-132
-93
+937
+47
+1016
+80
 set-random
 set-random-initial-configuration
 NIL
@@ -778,13 +821,13 @@ PENS
 "default" 1.0 0 -16777216 true "" "plot 100 * unemployed-number / actives-number"
 
 BUTTON
-948
-18
-1077
-51
+950
+82
+1079
+115
+run
+while [not stop?] [go]
 NIL
-go
-T
 1
 T
 OBSERVER
@@ -881,7 +924,7 @@ social-help-treshold
 social-help-treshold
 0
 1500
-50
+590
 10
 1
 NIL
@@ -903,12 +946,7 @@ true
 false
 "" ""
 PENS
-"default" 1.0 0 -16777216 true "" "plot mean [prov-balance] of households"
-"pen-1" 1.0 0 -7500403 true "" "plot min [prov-balance] of households"
-"pen-2" 1.0 0 -2674135 true "" "plot max [prov-balance] of households"
 "pen-3" 1.0 0 -955883 true "" "plot mean [global-balance] of households"
-"pen-4" 1.0 0 -6459832 true "" "plot max [global-balance] of households"
-"pen-5" 1.0 0 -1184463 true "" "plot min [global-balance] of households"
 
 MONITOR
 415
@@ -952,7 +990,7 @@ die-treshold
 die-treshold
 -10000
 1000
--1310
+-2640
 10
 1
 NIL
@@ -983,7 +1021,7 @@ SWITCH
 539
 new-inhabitants?
 new-inhabitants?
-1
+0
 1
 -1000
 
@@ -1042,7 +1080,7 @@ bref
 bref
 -10000
 20000
-12360
+5000
 10
 1
 NIL
@@ -1103,7 +1141,7 @@ k-studies
 k-studies
 0
 5
-0.3
+0.4
 0.1
 1
 NIL
@@ -1129,7 +1167,7 @@ income-mean
 income-mean
 5000
 25000
-18250
+14000
 10
 1
 NIL
@@ -1143,18 +1181,18 @@ SLIDER
 bnorm
 bnorm
 10000
-30000
-30000
+50000
+12010
 10
 1
 NIL
 HORIZONTAL
 
 BUTTON
-14
-99
-104
-132
+1020
+47
+1101
+80
 set-static
 draw-gis-layers\nset-static-agents
 NIL
@@ -1285,23 +1323,6 @@ false
 PENS
 "default" 1.0 0 -16777216 true "" "plot norm-p 1 [services-satisfaction] of households"
 
-BUTTON
-1013
-98
-1076
-131
-test
-ask paths [set color blue set thickness 0.3 let e1 end1 let d 0 ask end2 [set d distance e1] set path-length d]\nnw:set-snapshot vertexes paths\nask one-of vertexes [\n   ask one-of other vertexes [\n     let l nw:weighted-path-to myself \"path-length\"\n     if l != false [foreach l [ask ? [set thickness 0.5 set color green]]]\n   ]\n]
-NIL
-1
-T
-OBSERVER
-NIL
-NIL
-NIL
-NIL
-1
-
 SWITCH
 956
 446
@@ -1322,7 +1343,7 @@ max-time
 max-time
 0
 100
-20
+9
 1
 1
 NIL
@@ -1337,11 +1358,150 @@ energy-cost
 energy-cost
 0
 100
+3
+0.1
+1
+NIL
+HORIZONTAL
+
+SWITCH
+1105
+54
+1195
+87
+stop?
+stop?
+0
+1
+-1000
+
+TEXTBOX
+1122
+236
+1198
+254
+Refurb. parameters
+8
+0.0
+1
+
+SLIDER
+1118
+252
+1231
+285
+ref-living-standard-change-factor
+ref-living-standard-change-factor
+0
+10
 1
 0.1
 1
 NIL
 HORIZONTAL
+
+SLIDER
+1119
+289
+1232
+322
+ref-energy-change-factor
+ref-energy-change-factor
+0
+10
+0.2
+0.1
+1
+NIL
+HORIZONTAL
+
+BUTTON
+950
+121
+1087
+154
+run with refurbishment
+refurbishment
+NIL
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
+
+MONITOR
+845
+448
+902
+493
+energy
+mean [energetic-performance] of flats
+17
+1
+11
+
+INPUTBOX
+79
+10
+142
+70
+calib-file
+calibration/calibSimplexMeanSquares_05:29:10.297 PM 05-juin-2013.sci
+1
+0
+String
+
+INPUTBOX
+144
+10
+207
+70
+calib-tick
+11
+1
+0
+Number
+
+TEXTBOX
+4
+10
+68
+28
+Calibration
+11
+0.0
+1
+
+BUTTON
+10
+25
+73
+58
+calib
+calibrate-with-simplex
+NIL
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
+
+INPUTBOX
+3
+64
+69
+124
+calib-error
+100000
+1
+0
+Number
 
 @#$#@#$#@
 ## WHAT IS IT?
