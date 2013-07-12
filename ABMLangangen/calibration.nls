@@ -4,10 +4,10 @@ to calibrate-with-simplex
   set calib-tick 1
   print-in-file calib-file "ms=[];incomemean=[];bref=[];bnorm=[];"
   ;let guess [10000 34000 13000]
-  let guess [5000 5000 10000] ;; income guess has to be greater than treshold, if not bad time
+  let guess [12000 30000 17000] ;; income guess has to be greater than treshold, if not bad time
   
   let tsk task [runmodel ?]
-  let result numanal:simplex guess tsk 100 2000
+  let result numanal:simplex guess tsk simplex-tolerance 1000
   log-out result
 end
 
@@ -40,7 +40,7 @@ to-report runmodel [params]
   ]  
   
   log-out word "mean-square-error" out
-  print-in-file calib-file word word word word "ms(" calib-tick ")="  min list out 50000 ";"
+  print-in-file calib-file word word word word "ms(" calib-tick ")="  min list out 1000000000 ";"
   print-in-file calib-file word word word word "incomemean(" calib-tick ")=" income-mean ";"
   print-in-file calib-file word word word word "bref(" calib-tick ")=" bref ";"
   print-in-file calib-file word word word word "bnorm(" calib-tick ")=" bnorm ";"

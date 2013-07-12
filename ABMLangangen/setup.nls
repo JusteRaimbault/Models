@@ -31,11 +31,11 @@ to draw-gis-layers
   gis:set-drawing-color brown
   gis:draw paths-layer-data 2
   
-  ;;draw other layers
-  if green? [gis:set-drawing-color green
-  gis:draw green-layer-data 5]
-  if services? [gis:set-drawing-color red
-  gis:draw services-layer-data 5]
+  ;;draw other layers NOT NEEDED
+  ;;if green? [gis:set-drawing-color green
+  ;;gis:draw green-layer-data 5]
+  ;;if services? [gis:set-drawing-color red
+  ;;gis:draw services-layer-data 5]
   if transport? [gis:set-drawing-color orange
   gis:draw transport-layer-data 3]
   
@@ -90,14 +90,13 @@ to set-static-agents
   set cluster-treshold 0.5
   create-network
   
-  ;;set green spaces - Idem network (targets need to exist!)
-  if green? [foreach gis:feature-list-of green-layer-data [foreach gis:vertex-lists-of ? [foreach ? [let loc gis:location-of ? create-green-spaces 1 [setxy first loc first but-first loc set color green set shape "circle"]]]]]
-  
-  ;;set services
-  if services? [foreach gis:feature-list-of services-layer-data [foreach gis:vertex-lists-of ? [foreach ? [let loc gis:location-of ? create-services 1 [setxy first loc first but-first loc set color red set shape "circle"]]]]]
+  ;;setup services and green spaces through their gis-layer passed as a variable
+  ;;[the external function is called also during a refurbishment with additional layers]
+  setup-action-gis-layers green-layer-data services-layer-data
   
   ;;set transport stations
    
+  ;;NOT IMPLEMENTED YET. Seems not to be necessary
   
   ;;creation of flats
   set-flats  
@@ -110,6 +109,14 @@ to set-static-agents
   
 end
 
+to setup-action-gis-layers [green-layer services-layer]
+  ;;set green spaces - Idem network (targets need to exist!)
+  if green? [foreach gis:feature-list-of green-layer [foreach gis:vertex-lists-of ? [foreach ? [let loc gis:location-of ? create-green-spaces 1 [setxy first loc first but-first loc set color green set shape "circle"]]]]]
+  
+  ;;set services
+  if services? [foreach gis:feature-list-of services-layer [foreach gis:vertex-lists-of ? [foreach ? [let loc gis:location-of ? create-services 1 [setxy first loc first but-first loc set color red set shape "circle"]]]]]
+  
+end
 
 
 
@@ -214,8 +221,8 @@ to set-random-initial-configuration
   
   
   ;;extended globals
-  set green-space-satisfaction-individual-norm-factor 2.5
-  set services-satisfaction-individual-norm-factor 2.5
+  set green-space-satisfaction-individual-norm-factor 0.01
+  set services-satisfaction-individual-norm-factor 20
   
   set standard-influence-on-rent 0.2
   

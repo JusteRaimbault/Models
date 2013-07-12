@@ -1,0 +1,17 @@
+
+
+
+to explore-ref-possibilities
+
+
+
+
+
+
+  ;;export plots
+  let t date-and-time
+  
+  export-plot-as-scilab "rents" word word word word word word "/Users/Juste/Documents/Complex Systems/SustainableDistrict/Results/ABMLangangen/Refurbishment/scenarii/energyonlyRents_EN_" ref-energy-change-factor "_LS_" ref-living-standard-change-factor "_" t ".sci" "" ""
+  export-plot-as-scilab "mean income" word word word word word word "/Users/Juste/Documents/Complex Systems/SustainableDistrict/Results/ABMLangangen/Refurbishment/scenarii/energyonlyIncome_EN_" ref-energy-change-factor "_LS_" ref-living-standard-change-factor "_" t ".sci" "" ""
+  export-plot-as-scilab "balances" word word word word word word "/Users/Juste/Documents/Complex Systems/SustainableDistrict/Results/ABMLangangen/Refurbishment/scenarii/energyonlyBalances_EN_" ref-energy-change-factor "_LS_" ref-living-standard-change-factor "_" t ".sci" "" ""
+end

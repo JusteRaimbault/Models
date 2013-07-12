@@ -12,6 +12,7 @@ __includes[
   "/Users/Juste/Documents/Complex Systems/Softwares/NetLogo/utils/GISUtilities.nls"
   "setup.nls"
   "calibration.nls"
+  "refscenarii.nls"
 ]
 
 globals [
@@ -97,6 +98,16 @@ globals [
   ;;output file
   ;calib-file
   ;calib-tick
+  
+  
+  ;;;;;;;
+  ;;Globals for refurbishment description : parameters, new layers
+  ;;;;;;;
+  ;ref-living-standard-change-factor
+  ;ref-energy-change-factor
+  additional-green-spaces-layer
+  additional-services-layer
+  
 ]
 
 
@@ -256,18 +267,39 @@ end
 
 
 to refurbishment
+  ;;setup
   set-random-initial-configuration
+  
+  ;;go for first half
   while [not stop?] [go]
   
+  
+  ;;;;;
   ;;proceed to refurbishment
+  ;;;;;
+  
+  
   log-out "Refurbishment..."
   ask flats [
-    set energetic-performance energetic-performance * ref-energy-change-factor
-    set living-standard living-standard * ref-living-standard-change-factor
-    ;;need to change rent according to the change of living-standard
-    ;;use same parameter as for initialization?
-    
+    if energy? [set energetic-performance energetic-performance * ref-energy-change-factor]
+    if standard? [
+      set living-standard living-standard * ref-living-standard-change-factor
+      ;;need to change rent according to the change of living-standard
+      ;;use same parameter as for initialization? -> Nope, use only change factor. Yet, change of variable doesn't induce anything.
+      ;;Contradiction to correct !!!
+      set rent rent * ref-living-standard-change-factor
+    ]
   ]
+    
+  ;;add new layers for green spaces and services if needed
+  ;;delete old, because new layer can be less?
+  ask green-spaces [die] ask services [die]
+  set additional-green-spaces-layer gis:load-dataset "/Users/Juste/Documents/Complex Systems/SustainableDistrict/Data/Langangen/GIS/langangen_green/langangen_green_new.shp"
+  set additional-services-layer gis:load-dataset "/Users/Juste/Documents/Complex Systems/SustainableDistrict/Data/Langangen/GIS/langangen_services/langangen_services.shp"
+  setup-action-gis-layers additional-green-spaces-layer additional-services-layer
+  ;;new calculation of distances
+  ask flats [set-cache-distances]  
+    
   
   ;;simulate following years
   set stop? false
@@ -277,11 +309,7 @@ to refurbishment
   set max-time m
   
   
-  ;;export plots
-  let t date-and-time
-  export-plot-as-scilab "rents" word word word word word word "/Users/Juste/Documents/Complex Systems/SustainableDistrict/Results/ABMLangangen/Refurbishment/scenarii/energyonlyRents_EN_" ref-energy-change-factor "_LS_" ref-living-standard-change-factor "_" t ".sci"
-  export-plot-as-scilab "mean income" word word word word word word "/Users/Juste/Documents/Complex Systems/SustainableDistrict/Results/ABMLangangen/Refurbishment/scenarii/energyonlyIncome_EN_" ref-energy-change-factor "_LS_" ref-living-standard-change-factor "_" t ".sci"
-  export-plot-as-scilab "balances" word word word word word word "/Users/Juste/Documents/Complex Systems/SustainableDistrict/Results/ABMLangangen/Refurbishment/scenarii/energyonlyBalances_EN_" ref-energy-change-factor "_LS_" ref-living-standard-change-factor "_" t ".sci"
+  
 end
 
 
@@ -608,7 +636,6 @@ end
 to log-out [text]
   if debug? [output-print text]
 end
-
 @#$#@#$#@
 GRAPHICS-WINDOW
 210
@@ -924,7 +951,7 @@ social-help-treshold
 social-help-treshold
 0
 1500
-590
+720
 10
 1
 NIL
@@ -990,7 +1017,7 @@ die-treshold
 die-treshold
 -10000
 1000
--2640
+-4880
 10
 1
 NIL
@@ -1080,7 +1107,7 @@ bref
 bref
 -10000
 20000
-5000
+11780
 10
 1
 NIL
@@ -1167,7 +1194,7 @@ income-mean
 income-mean
 5000
 25000
-14000
+19243.712848651136
 10
 1
 NIL
@@ -1182,7 +1209,7 @@ bnorm
 bnorm
 10000
 50000
-12010
+44400
 10
 1
 NIL
@@ -1272,7 +1299,7 @@ SWITCH
 330
 energy?
 energy?
-1
+0
 1
 -1000
 
@@ -1283,7 +1310,7 @@ SWITCH
 368
 standard?
 standard?
-1
+0
 1
 -1000
 
@@ -1330,7 +1357,7 @@ SWITCH
 479
 debug?
 debug?
-0
+1
 1
 -1000
 
@@ -1343,7 +1370,7 @@ max-time
 max-time
 0
 100
-9
+8
 1
 1
 NIL
@@ -1393,9 +1420,9 @@ SLIDER
 ref-living-standard-change-factor
 ref-living-standard-change-factor
 0
-10
-1
-0.1
+3
+1.22
+0.02
 1
 NIL
 HORIZONTAL
@@ -1409,7 +1436,7 @@ ref-energy-change-factor
 ref-energy-change-factor
 0
 10
-0.2
+5
 0.1
 1
 NIL
@@ -1449,7 +1476,7 @@ INPUTBOX
 142
 70
 calib-file
-calibration/calibSimplexMeanSquares_05:29:10.297 PM 05-juin-2013.sci
+calibration/calibSimplexMeanSquares_04:56:11.876 PM 07-juin-2013.sci
 1
 0
 String
@@ -1460,7 +1487,7 @@ INPUTBOX
 207
 70
 calib-tick
-11
+38
 1
 0
 Number
@@ -1498,10 +1525,25 @@ INPUTBOX
 69
 124
 calib-error
-100000
+6352904
 1
 0
 Number
+
+SLIDER
+76
+75
+204
+108
+simplex-tolerance
+simplex-tolerance
+0
+1000000
+354000
+100
+1
+NIL
+HORIZONTAL
 
 @#$#@#$#@
 ## WHAT IS IT?
