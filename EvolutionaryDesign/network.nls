@@ -1,0 +1,7 @@
+to-report random-network
+   let network-nodes [] let network-links []
+   repeat initial-nodes [set network-nodes lput list random-xcor random-ycor network-nodes]
+   let links-number round ((initial-nodes * (initial-nodes - 1) / 2) * initial-nw-density) let l 0
+   while [l < links-number] [let n1 one-of network-nodes let n2 one-of network-nodes if n1 != n2 and not member? list n1 n2 network-links and not member? list n2 n1 network-links [set network-links lput list n1 n2 network-links set l l + 1]]
+    
+end

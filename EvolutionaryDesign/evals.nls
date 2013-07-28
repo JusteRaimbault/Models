@@ -1,0 +1,16 @@
+to-report diversity [conf]
+   
+   let W 0
+   ask patches [let x pxcor let y pycor ask other patches[set W W + (1 / distancexy x y)]]
+   let r 0
+   ask patches [let x pxcor let y pycor let t pcolor ask other patches[if pcolor != t [set r r + (1 / distancexy x y)]]]
+   report landuses-number / (landuses-number - 1) * r / W
+   
+end
+
+
+to-report nw-density [conf]
+  ;;pb:need to be called when network is built ; fix that?
+  let n count vertices let l count paths
+  report 2 * l / (n * (n - 1))
+end
