@@ -1,7 +1,64 @@
-to-report random-network
+
+;;random network generation
+to-report random-network  
    let network-nodes [] let network-links []
    repeat initial-nodes [set network-nodes lput list random-xcor random-ycor network-nodes]
    let links-number round ((initial-nodes * (initial-nodes - 1) / 2) * initial-nw-density) let l 0
    while [l < links-number] [let n1 one-of network-nodes let n2 one-of network-nodes if n1 != n2 and not member? list n1 n2 network-links and not member? list n2 n1 network-links [set network-links lput list n1 n2 network-links set l l + 1]]
+   report list network-nodes network-links   
+end
+
+
+
+;;"more real" nw generation
+to-report real-network
+  ;;create the real network
+  create-vertices initial-nodes [ new-vertex setxy random-xcor random-ycor]   
+  ask vertices [create-paths-with ((other vertices) with-min [distance myself]) with [not link-neighbor? myself][new-path]]
+  connect-components
+  
+  ;;export it into std format
+  let nw-nodes [] let nw-paths []
+  ask vertices [set nw-nodes lput list xcor ycor nw-nodes]
+  ask paths [set nw-paths lput list (list [xcor] of end1 [ycor] of end1) (list [xcor] of end2 [ycor] of end2)nw-paths]
+  ask vertices [die] ask paths [die]
+  report list nw-nodes nw-paths
+end
+
+
+to connect-components
+  let dmax sqrt ((world-width ^ 2) + (world-height ^ 2))
+  let clusters []
+  while [length clusters = 0 or length clusters > 2] [
+     nw:set-snapshot vertices paths
+     set clusters nw:weak-component-clusters
+     let c1 first clusters let dmin dmax let tmin1 one-of vertices let tmin2 one-of vertices
+     foreach clusters[
+         if ? != c1 [
+           let d dmax let t1 one-of vertices let t2 one-of vertices
+           foreach ? [
+             let t ?
+             foreach c1 [
+               ask ? [if distance t < d [set d distance t set t1 self set t2 t]] 
+             ]
+           ]
+           if d < dmin [set dmin d set tmin1 t1 set tmin2 t2]
+         ]
+     ]
+     if tmin1 != tmin2 [ask tmin1 [create-path-with tmin2 [new-path]]]
+  ]
+end
+
+
+to create-network [network]
+    ask vertices [die] ask paths [die]
+    let nodes first network
+    let nw-paths last network
+    foreach nodes [create-vertices 1 [setxy first ? last ? new-vertex]]
+    foreach nw-paths [
+      let n1 one-of vertices-on patch first first ? last first ? let n2 one-of vertices-on patch first last ? last last ?
+      if n1 != nobody and n2 != nobody [ask n1 [if not path-neighbor? n2 and n2 != self [create-path-with n2 [new-path]]]]  
+    ]
     
 end
+

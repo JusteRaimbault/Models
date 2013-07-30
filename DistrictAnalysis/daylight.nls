@@ -5,12 +5,68 @@
 ;;patches are spatial discretisation (not more, so need to be precise)
 
 
-to test-sunlight-index
-  let theta (list 0 0 0 0 0 0 0 10 20 30 40 50 50 50 50 50 50 40 30 20 10 0 0 0)
-  let phi (list 0 0 0 0 0 0 0 90 110 120 130 150 170 180 190 200 210 230 240 260 270 0 0 0) ;;degueu
+to calculate-sunlight-index
+  ;;set heights of buildings
+  ;;simplified : all same height, would need attribute file
+  set-heights
   
+  ;;set sun positions
+  set-sun-positions
+  
+  ;;angle interval will be tick time
+  set angle-time-interval round ((length theta) / 24)
+  
+  let objectives objective-points
+  
+  ;;more simple to first integrate on space then in time,
+  ;;so we take p=1 in the norm so no interversion pb
+  let tot 0 let s 0
+  repeat round (24 / angle-time-interval) [
+     if first theta > 0 [
+       clear-drawing
+       gis:draw paths-layer-data 1
+       output-print word "Hour " ((tot * angle-time-interval) + 1)
+       set s s + daylight-value list (first theta) (first phi) objectives
+       set tot tot + 1
+     ]
+     
+     set theta but-first theta
+     set phi but-first phi
+  ]
+  
+  set sunlight-index s / tot
   
 end
+
+
+;;reporter for a given sun position
+;;position as a couple (theta,phi)
+to-report daylight-value [sun-position points]
+  let enl 0
+  foreach points [
+     set enl enl + local-daylight-value sun-position ?
+  ]
+  report enl / length points
+end
+
+to-report local-daylight-value [sun-position point]
+  ;;implementation : a turtle goes in theta direction
+  ;;checks at each step (1?) if l*sin(theta) > local-height
+  ;;in a way, turtle is one photon !
+  let photon nobody let light? true let l 0 let th first sun-position
+  create-turtles 1 [setxy first point last point set heading last sun-position set photon self set color yellow pen-down]
+  ask photon [
+     while [can-move? 1][
+       if l > 0 [set light? (light? and (l * scale-factor * tan th ) > [height] of patch-here) ]
+       set l l + 1
+       fd 1
+     ]
+     die
+  ]
+  ifelse light? [report 1][report 0]
+end
+
+
 
 
 to set-heights
@@ -26,16 +82,26 @@ to set-heights
   ask buildings [ask patches with [gis:intersects? [gis-shape] of myself self or gis:contains? [gis-shape] of myself self] [set height 30 set pcolor white]]
 end
 
+
+to set-sun-positions
+  ;;read from file
+  ;;values of angles every hour
+  set theta map read-from-string read-file "thetaSW.txt"
+  set phi map read-from-string read-file "phiSW.txt"
+  
+  
+end
+
+
+
 to-report objective-points
   ;;dirty : for each discontinuity between two patches, add a column of windows? :/
-  ask patches [set neighb to-list neighbors4]
   
   let res []
   
   ask patches [
-    foreach neighb [
-      ask ? [set neighb remove myself neighb]
-      if [height] of ? - height != 0 [set res lput list (([pxcor] of ? + pxcor) / 2) (([pycor] of ? + pycor) / 2) res]
+    ask neighbors4[
+       if height - [height] of myself != 0 [set res lput list (([pxcor] of myself + pxcor) / 2) (([pycor] of myself + pycor) / 2) res]
     ]
   ]
   

@@ -4,13 +4,43 @@ to-report diversity [conf]
    ask patches [let x pxcor let y pycor ask other patches[set W W + (1 / distancexy x y)]]
    let r 0
    ask patches [let x pxcor let y pycor let t pcolor ask other patches[if pcolor != t [set r r + (1 / distancexy x y)]]]
-   report landuses-number / (landuses-number - 1) * r / W
+   let d landuses-number / (landuses-number - 1) * r / W
+   if d = 0 [report plot-x-max]
+   report (1 / d)
    
 end
 
 
 to-report nw-density [conf]
   ;;pb:need to be called when network is built ; fix that?
+  ;;ok create network again?
+  ;create-network
+  
   let n count vertices let l count paths
   report 2 * l / (n * (n - 1))
+end
+
+
+
+to-report nw-speed [conf]
+  ;create-network
+  let vertices-list to-list vertices
+  let remaining-vertices vertices-list
+  let total 0
+  nw:set-snapshot vertices paths
+  ask paths [let dd 0 ask end1 [set dd distance other-end] set path-length dd]
+  
+  foreach vertices-list [
+    ;;works that way because exact copy of the list ! Dangerous !
+    if remaining-vertices != [] [set remaining-vertices but-first remaining-vertices]
+    ask ? [
+       let start ?
+       foreach remaining-vertices [
+         ask ? [let p nw:weighted-distance-to start "path-length" if p != false [set total total + (p /(distance start))]]
+       ]
+    ] 
+  ]
+  let nn count vertices
+  report 2 * total /(nn * (nn - 1))
+  
 end

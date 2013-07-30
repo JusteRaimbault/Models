@@ -1,7 +1,12 @@
 extensions[table nw]
 
 __includes[
+  "/Users/Juste/Documents/ComplexSystems/Softwares/NetLogo/utils/ListUtilities.nls"
+  "/Users/Juste/Documents/ComplexSystems/Softwares/NetLogo/utils/FileUtilities.nls"
+  "/Users/Juste/Documents/ComplexSystems/Softwares/NetLogo/utils/StringUtilities.nls"
+  
   "evals.nls" 
+  "network.nls"
 ]
 
 
@@ -43,6 +48,9 @@ globals [
   current-evaluation
   
   
+  ;;values of preced confs
+  values
+  
 ]
 
 
@@ -60,6 +68,10 @@ vertices-own[
   
 ]
 
+paths-own [
+  path-length 
+]
+
 
 
 to setup
@@ -74,6 +86,8 @@ to setup
     set-current-plot "pareto"
     set-current-plot-pen "pen-0"
     set-plot-pen-mode 2
+    
+    set values []
 end
 
 
@@ -147,6 +161,13 @@ to-report cross-configurations [conf1 conf2]
     ]
   ]
   
+  ;;finally connexify the nw? ;;everything seems quite degueu :(
+  create-network list resnetwork-nodes resnetwork-links
+  connect-components
+  set resnetwork-links []
+  ask paths [set resnetwork-links lput list (list [xcor] of end1 [ycor] of end1) (list [xcor] of end2 [ycor] of end2) resnetwork-links]
+  ask vertices [die] ask paths [die]
+  
   
   ;;for efficience, advance in same time in two listes
   ;;uses the partition property
@@ -186,8 +207,8 @@ to test-cascaded-crossings
   color-configuration conf
   
   ;;eval and plot the conf
-  let val eval-configuration (list "diversity" "nw-density") conf
-  plotxy first val last val
+  let val eval-configuration (list "diversity" "nw-speed") conf
+  update-plot val
   
   ;;later : put iff better than all : test!
   table:put existing-configurations first conf last conf
@@ -209,14 +230,14 @@ to setup-crossings
     ;;generate a random network?
     let network []
     ifelse random-network? [
-      set network 
+      set network random-network
      ][
       ;;heuristic for "real network" -> join neighbors and connected components.
       ;;quite shitty because needs to create the network
-      
+      set network real-network
     ]
     
-    table:put existing-configurations conf list network-nodes network-links
+    table:put existing-configurations conf network
     set col col + (130 / (landuses-number - 1))
   ]
 end
@@ -244,12 +265,21 @@ end
 
 
 
+to update-plot [val]
+  set values lput val values let minx 0 let maxx 0 let miny 0 let maxy 0
+  let xvals map first values ifelse length xvals = 1 [set maxx 1][set minx min xvals set maxx max xvals]
+  let yvals map last values ifelse length yvals = 1 [set maxy 1] [set miny min yvals set maxy max yvals]
+  set-plot-x-range minx maxx set-plot-y-range miny maxy
+  foreach values [plotxy first ? last ?]
+end
+
+
+
+
+
 to color-configuration [conf]
-  ask vertices [die] ask paths [die]
   
   let configuration first conf
-  let nodes first last conf
-  let nw-paths last last conf
   
   ;;landuse var will be the color
   foreach sort-on [[who] of one-of numbers-here] patches [ask ? [set landuse first configuration set configuration but-first configuration]]
@@ -257,11 +287,7 @@ to color-configuration [conf]
   
   ;;shows network
   ;;option later for efficience purposes?
-  foreach nodes [create-vertices 1 [setxy first ? last ? new-vertex]]
-  foreach nw-paths [
-    let n1 one-of vertices-on patch first first ? last first ? let n2 one-of vertices-on patch first last ? last last ?
-    if n1 != nobody and n2 != nobody [ask n1 [if not path-neighbor? n2 and n2 != self [create-path-with n2 [new-path]]]]  
-  ]
+  create-network last conf
   
 end
 
@@ -468,10 +494,10 @@ NIL
 1
 
 PLOT
-1110
+891
 193
 1396
-423
+461
 pareto
 diversity
 nw-density

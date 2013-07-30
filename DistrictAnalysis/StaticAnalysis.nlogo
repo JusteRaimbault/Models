@@ -5,28 +5,51 @@ __includes [
   "/Users/Juste/Documents/ComplexSystems/Softwares/NetLogo/utils/ListUtilities.nls"
   "/Users/Juste/Documents/ComplexSystems/Softwares/NetLogo/utils/NetworkUtilities.nls"
   "/Users/Juste/Documents/ComplexSystems/Softwares/NetLogo/utils/EuclidianDistancesUtilities.nls"
+  "/Users/Juste/Documents/ComplexSystems/Softwares/NetLogo/utils/FileUtilities.nls"
   "daylight.nls"
+  "indicatorsVars.nls"
 ]
 
 globals [
+  
+  ;;scale factor : value in meters of 1 step in NL world
+  scale-factor
+  
+  ;;network
   paths-layer-data
   buildings-layer-data
+  tram-layer-data
+  
   remaining-links
-  remaining-vertexes
+  remaining-vertices
   
-  
+  ;;speed
   target-station
+  
+  ;;landuse
+  landuse-diversity
+  patches-count
+  
+  ;;daylight
+  ;;list of successives theta angles
+  theta
+  ;;list of successives phi angles
+  phi
+  ;;time interval to change angle (first line of txt file)
+  angle-time-interval
+  
+  sunlight-index
   
 ]
 
 
-breed [vertexes vertex]
+breed [vertices vertex]
 breed [abstract-gis-paths abstract-gis-path]
 
 
 abstract-gis-paths-own [
    gis-feature
-   vertexes-list
+   vertices-list
 ]
 
 
@@ -47,8 +70,12 @@ rails-own [
   rail-length 
 ]
 
-vertexes-own[
+vertices-own[
  d 
+ 
+ ;;simplified as mean distance to other vertices
+ spatial-integration
+ 
 ]
 
 buildings-own[
@@ -56,14 +83,22 @@ buildings-own[
  distance-to-nearest-station
  nearest-station
  transportation-time
+ transportation-speed
+ 
 ]
 
 
 patches-own [
+  
+  ;;daylight
   height
   neighb
+  
+  ;;diversity
+  use
+  
+  
 ]
-
 
 
 
@@ -71,11 +106,13 @@ to load-and-draw-data
   ca
   resize-world 0 400 0 300
   set-patch-size 2
+  set scale-factor real-world-width / world-width
   ask patches [set height 0]
-  set paths-layer-data gis:load-dataset "/Users/Juste/Documents/Complex Systems/SustainableDistrict/Data/Bergsjon/GIS/Bergsjon/bergsjonallpaths.shp"
-  set buildings-layer-data gis:load-dataset "/Users/Juste/Documents/Complex Systems/SustainableDistrict/Data/Bergsjon/GIS/Bergsjon/bergsjonbuildings.shp"
+  set paths-layer-data gis:load-dataset path-data
+  set buildings-layer-data gis:load-dataset building-data
+  set tram-layer-data gis:load-dataset tram-data
   
-  gis:set-world-envelope gis:envelope-union-of (gis:envelope-of paths-layer-data) (gis:envelope-of buildings-layer-data)
+  gis:set-world-envelope gis:envelope-union-of gis:envelope-union-of (gis:envelope-of paths-layer-data) (gis:envelope-of buildings-layer-data) (gis:envelope-of tram-layer-data)
   
   gis:set-drawing-color brown
   gis:draw paths-layer-data 2
@@ -102,10 +139,10 @@ end
 
 to import-tram
   ask stations [die] ask rails [die]
-  let data gis:load-dataset "/Users/Juste/Documents/Complex Systems/SustainableDistrict/Data/Bergsjon/GIS/Bergsjon/bergsjonalltram.shp"
   let current-station nobody
-  foreach gis:vertex-lists-of first gis:feature-list-of data [
-    foreach ? [
+  foreach gis:feature-list-of tram-layer-data [
+    foreach gis:vertex-lists-of ? [
+      foreach ? [
       let loc gis:location-of ?
       create-stations 1 [
         setxy first loc first but-first loc set shape "circle" set color red set size 1
@@ -113,12 +150,17 @@ to import-tram
         set current-station self
       ]
     ] 
+    ]
   ]
   
 end
 
 
 
+to export-plots
+  ;let filename word word ""
+  
+end
 
 
 
@@ -138,28 +180,6 @@ end
 ;  report res
 ;end
 
-to-report from-station [target-vertex]
-  let res 0
-  let s first sort-on [distance myself] vertexes
-  ask target-vertex[set res nw:weighted-distance-to s "path-length"]
-  report res
-end
-
-to-report building-distance-to-transportation
-  let res 0
-  let v1 first sort-on [distance myself] vertexes show v1
-  nw:set-snapshot vertexes paths
-  let n-station nobody
-  ask v1 [
-    set n-station first sort-on [from-station myself] stations
-    let target first sort-on [distance n-station] vertexes
-    set res nw:weighted-distance-to target "path-length"
-    let l nw:weighted-path-to target "path-length" let t nw:turtles-on-weighted-path-to target "path-length" foreach l [ask ? [set color green set hidden? false]]foreach t [ask ? [set color green set hidden? false]]
-  ]
-  set nearest-station n-station
-  show res
-  report res
-end
 
 
 ;to calculate-distances-patches
@@ -175,31 +195,18 @@ end
 ;    
 ;end
 
-to calculate-distances-buildings
-  ask paths [set color blue set thickness 0.3 let di 0 ask end1 [set di distance [end2] of myself] set path-length di]
-  ask rails [ let di 0 ask end1 [set di distance [end2] of myself] set rail-length di]
-  ask buildings [set distance-to-nearest-station building-distance-to-transportation]
-  nw:set-snapshot stations rails
-  ask buildings [let di 0 ask nearest-station [set di nw:weighted-distance-to target-station "rail-length"] set transportation-time (distance-to-nearest-station / pedestrian-speed) + (di / tram-speed)]
-  let mi min [transportation-time] of buildings
-  let ma max [transportation-time] of buildings
-  ask buildings[
-      gis:set-drawing-color scale-color yellow  (- transportation-time) (- ma ) (- mi)
-      gis:fill gis-shape 1
-  ]
-end
 
 
 
 
 
 to test-nw
-  ask vertexes [set color blue]
+  ask vertices [set color blue]
   ask paths [set color blue set thickness 0.3 let di 0 ask end1 [set di distance [end2] of myself] set path-length di]
-  nw:set-snapshot vertexes paths 
-  let v one-of vertexes
+  nw:set-snapshot vertices paths 
+  let v one-of vertices
   ask v[
-    let target one-of other vertexes
+    let target one-of other vertices
     let l nw:weighted-path-to target "path-length" let t nw:turtles-on-weighted-path-to target "path-length" foreach l [ask ? [set color green set hidden? false]]foreach t [ask ? [set color green set hidden? false]]
     ]
 end
@@ -207,11 +214,11 @@ end
 to test-intersection
   ca
   let l1 nobody let l2 nobody
-  create-vertexes 1 [setxy random-xcor random-ycor hatch-vertexes 1 [setxy random-xcor random-ycor create-path-with myself [set l1 self]]]
-  create-vertexes 1 [setxy random-xcor random-ycor hatch-vertexes 1 [setxy random-xcor random-ycor create-path-with myself [set l2 self]]]
+  create-vertices 1 [setxy random-xcor random-ycor hatch-vertices 1 [setxy random-xcor random-ycor create-path-with myself [set l1 self]]]
+  create-vertices 1 [setxy random-xcor random-ycor hatch-vertices 1 [setxy random-xcor random-ycor create-path-with myself [set l2 self]]]
   
   let inter intersection l1 l2
-  if inter != [] [create-vertexes 1 [setxy first inter first but-first inter]]
+  if inter != [] [create-vertices 1 [setxy first inter first but-first inter]]
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
@@ -276,12 +283,12 @@ NIL
 1
 
 BUTTON
-8
-643
-185
-676
-NIL
-calculate-distances-buildings
+1067
+40
+1244
+73
+calculate
+import-tram\ncreate-network-vertices-clustering\nclear-drawing\nset-indicators-vars
 NIL
 1
 T
@@ -295,8 +302,8 @@ NIL
 PLOT
 4
 58
-204
-208
+164
+178
 plot 1
 NIL
 NIL
@@ -308,7 +315,7 @@ true
 false
 "" ""
 PENS
-"default" 1.0 0 -16777216 true "" "plot length remaining-links"
+"default" 1.0 0 -16777216 true "" "plot length remaining-vertices"
 
 PLOT
 4
@@ -326,7 +333,7 @@ true
 false
 "" ""
 PENS
-"default" 1.0 0 -16777216 true "" "plot count vertexes"
+"default" 1.0 0 -16777216 true "" "plot count vertices"
 "pen-1" 1.0 0 -7500403 true "" "plot count paths"
 
 SLIDER
@@ -338,7 +345,7 @@ cluster-treshold
 cluster-treshold
 0
 10
-0.5
+5.9
 0.1
 1
 NIL
@@ -350,7 +357,7 @@ BUTTON
 134
 639
 network
-import-tram\ncreate-network
+import-tram\ncreate-network-vertices-clustering\nclear-drawing
 NIL
 1
 T
@@ -370,7 +377,7 @@ pedestrian-speed
 pedestrian-speed
 0
 5
-3
+5
 0.1
 1
 NIL
@@ -397,7 +404,7 @@ BUTTON
 249
 715
 synthesis
-clear-drawing\nask target-station [set color green]\nask paths [set hidden? true] ask vertexes [set hidden? true]\nask patches with [count buildings-on self > 0] [set pcolor scale-color pink (- mean ([transportation-time] of buildings-on self)) (- max [transportation-time] of buildings) (- min [transportation-time] of buildings)]
+clear-drawing\nask target-station [set color green]\nask paths [set hidden? true] ask vertices [set hidden? true]\nask patches with [count buildings-on self > 0] [set pcolor scale-color pink (- mean ([transportation-time] of buildings-on self)) (- max [transportation-time] of buildings) (- min [transportation-time] of buildings)]
 NIL
 1
 T
@@ -407,6 +414,182 @@ NIL
 NIL
 NIL
 1
+
+TEXTBOX
+1057
+361
+1207
+379
+Indicators
+11
+0.0
+1
+
+MONITOR
+1055
+385
+1199
+430
+integrated travel time
+norm-p p-travel-time [transportation-time] of buildings
+17
+1
+11
+
+SLIDER
+1217
+387
+1389
+420
+p-travel-time
+p-travel-time
+1
+20
+1
+1
+1
+NIL
+HORIZONTAL
+
+MONITOR
+1055
+541
+1121
+586
+diversity
+landuse-diversity
+17
+1
+11
+
+OUTPUT
+1067
+84
+1334
+139
+10
+
+INPUTBOX
+1068
+146
+1410
+206
+path-data
+/Users/Juste/Documents/ComplexSystems/SustainableDistrict/Data/Minguettes/GIS/minguettes_roads.shp
+1
+0
+String
+
+INPUTBOX
+1068
+213
+1410
+273
+building-data
+/Users/Juste/Documents/ComplexSystems/SustainableDistrict/Data/Minguettes/GIS/minguettes_buildings.shp
+1
+0
+String
+
+INPUTBOX
+1069
+278
+1415
+338
+tram-data
+/Users/Juste/Documents/ComplexSystems/SustainableDistrict/Data/Minguettes/GIS/minguettes_tram.shp
+1
+0
+String
+
+SLIDER
+10
+530
+184
+563
+real-world-width
+real-world-width
+0
+10000
+500
+10
+1
+NIL
+HORIZONTAL
+
+MONITOR
+1055
+591
+1160
+636
+NIL
+sunlight-index
+17
+1
+11
+
+MONITOR
+1316
+7
+1405
+52
+rem patches
+3.3 * 100 * patches-count / count patches
+17
+1
+11
+
+MONITOR
+1054
+434
+1125
+479
+nw speed
+norm-p p-travel-speed [transportation-speed] of buildings
+17
+1
+11
+
+MONITOR
+1054
+487
+1179
+532
+spatial integration
+norm-p p-spatial-integration [spatial-integration] of vertices
+17
+1
+11
+
+SLIDER
+1223
+489
+1407
+522
+p-spatial-integration
+p-spatial-integration
+1
+20
+1
+1
+1
+NIL
+HORIZONTAL
+
+SLIDER
+1216
+443
+1388
+476
+p-travel-speed
+p-travel-speed
+1
+100
+1
+1
+1
+NIL
+HORIZONTAL
 
 @#$#@#$#@
 ## WHAT IS IT?

@@ -1,0 +1,97 @@
+to set-indicators-vars
+  output-print "Calculating speeds from buildings..."
+  calculate-nw-buildings
+  output-print "Calculating landuse diversity..."
+  ;calculate-landuse-diversity
+  output-print "Calculating sunlight distribution..."
+  ;calculate-sunlight-index
+  
+  calculate-spatial-integration
+end
+
+
+to calculate-spatial-integration
+  nw:set-snapshot vertices paths
+  let n count vertices
+  ask vertices [
+    ;;!!topological distance !
+     let tot 0 ask other vertices [let dis nw:distance-to myself if dis != false [set tot tot + dis]]
+     set spatial-integration tot / n
+  ]
+end
+
+
+
+to calculate-nw-buildings
+  ;;make in one time both nw indicators calculation
+  ;;done in building-distance-to-transportation for speed
+  
+  ask paths [set color blue set thickness 0.3 let di 0 ask end1 [set di distance [end2] of myself] set path-length di]
+  ask rails [ let di 0 ask end1 [set di distance [end2] of myself] set rail-length di]
+  ask buildings [set distance-to-nearest-station building-distance-to-transportation]
+  nw:set-snapshot stations rails
+  ask buildings [let di 0 ask nearest-station [set di nw:weighted-distance-to target-station "rail-length"] set transportation-time scale-factor * 60 / 1000 * ((distance-to-nearest-station / pedestrian-speed) + (di / (tram-speed)))]
+  let mi min [transportation-time] of buildings
+  let ma max [transportation-time] of buildings
+  ask buildings[
+      gis:set-drawing-color scale-color yellow  (- transportation-time) (- ma ) (- mi)
+      gis:fill gis-shape 1
+  ]
+end
+
+
+
+to-report building-distance-to-transportation
+  let res 0
+  let v1 first sort-on [distance myself] vertices ;show v1
+  nw:set-snapshot vertices paths
+  let n-station nobody let target nobody
+  ask v1 [
+    set n-station first sort-on [from-station myself] stations
+    set target first sort-on [distance n-station] vertices
+    set res nw:weighted-distance-to target "path-length"
+    
+    let l nw:weighted-path-to target "path-length" let t nw:turtles-on-weighted-path-to target "path-length" foreach l [ask ? [set color green set hidden? false]]foreach t [ask ? [set color green set hidden? false]]
+  ]
+  
+  ;;set the "speed" to that station
+  if res = false [set res 0] ;;ok, just not counted!
+  set transportation-speed res / (distance target)
+  
+  set nearest-station n-station
+  ;show res
+  report res
+end
+
+
+to-report from-station [target-vertex]
+  let res 0
+  let s first sort-on [distance myself] vertices
+  ask target-vertex[set res nw:weighted-distance-to s "path-length"]
+  ifelse res != false [report res] [report sqrt (world-width ^ 2 + world-height ^ 2)]
+end
+
+
+
+
+
+to calculate-landuse-diversity
+  ask patches [set use landuse]
+  set landuse-diversity diversity
+end
+
+to-report diversity
+   let W 0
+   let r 0
+   let echantillon n-of round (0.3 * count patches) patches
+   ask echantillon [let x pxcor let y pycor let t use ask other echantillon[if use != t [ set r r + (1 / distancexy x y)] set W W + (1 / distancexy x y)]  set patches-count patches-count + 1]
+   report 3 / 2 * r / W ;;normalisation since we have 3 landuse here
+   
+end
+
+;;patch procedure reporting landuse in that particular case
+to-report landuse
+  if count buildings-here > 0 [report 0]
+  if count stations-here > 0 [report 1]
+  report 2
+end
